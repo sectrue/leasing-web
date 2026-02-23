@@ -11,6 +11,10 @@ export function useAziende({ token }: UseAziendeParams) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aziendaId, setAziendaId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -61,12 +65,63 @@ export function useAziende({ token }: UseAziendeParams) {
     }
   }
 
+  function startEdit(item: Azienda) {
+    setEditingId(item.id);
+    setEditNome(item.nome || "");
+    setSaveError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditNome("");
+    setSaveError(null);
+  }
+
+  async function saveEdit() {
+    if (!token || !editingId) return;
+    const nome = editNome.trim();
+    if (!nome) {
+      setSaveError("Nome azienda obbligatorio");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${API_URL}/aziende/${editingId}`, {
+        method: "PUT",
+        headers: buildAuthHeaders(token, null, {
+          "Content-Type": "application/json"
+        }),
+        body: JSON.stringify({ nome })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Errore salvataggio azienda");
+      }
+      await load();
+      cancelEdit();
+    } catch (e: any) {
+      setSaveError(e?.message || "Errore salvataggio azienda");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return {
     items,
     loading,
     error,
     aziendaId,
     setAziendaId,
-    refresh: load
+    refresh: load,
+    editingId,
+    editNome,
+    setEditNome,
+    saveError,
+    saving,
+    startEdit,
+    cancelEdit,
+    saveEdit
   };
 }

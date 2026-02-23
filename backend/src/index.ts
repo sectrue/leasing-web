@@ -196,6 +196,23 @@ async function start() {
     return prisma.aziende.findMany({ orderBy: { id: "asc" } });
   });
 
+  app.put("/aziende/:id", { preHandler: [requireAuth] }, async (request, reply) => {
+    const id = Number((request.params as any)?.id || 0);
+    if (!id) return reply.code(400).send({ error: "Azienda non valida" });
+
+    const nome = cleanString((request.body as any)?.nome);
+    if (!nome) return reply.code(400).send({ error: "Nome azienda obbligatorio" });
+
+    const existing = await prisma.aziende.findUnique({ where: { id } });
+    if (!existing) return reply.code(404).send({ error: "Azienda non trovata" });
+
+    const updated = await prisma.aziende.update({
+      where: { id },
+      data: { nome }
+    });
+    return updated;
+  });
+
   const praticaPublicSelect = {
     id: true,
     nr_ctr: true,

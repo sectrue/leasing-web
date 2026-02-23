@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { PratichePage } from "./pages/PratichePage";
 import { MezziPage } from "./pages/MezziPage";
 import { StatistichePage } from "./pages/StatistichePage";
+import { AziendePage } from "./pages/AziendePage";
 import { SocietaLeasingPage } from "./pages/SocietaLeasingPage";
 import { LoginCard } from "./components/LoginCard";
 import { MezziModal } from "./components/MezziModal";
@@ -18,7 +19,9 @@ import { PraticaFormModal } from "./components/PraticaFormModal";
 import { formatCurrency, parseMoney } from "./lib/format";
 
 export default function App() {
-  const [activePage, setActivePage] = useState<"dashboard" | "pratiche" | "mezzi" | "statistiche" | "societa-leasing">("dashboard");
+  const [activePage, setActivePage] = useState<
+    "dashboard" | "pratiche" | "mezzi" | "statistiche" | "aziende" | "societa-leasing"
+  >("dashboard");
 
   const auth = useAuth();
   const aziende = useAziende({ token: auth.token });
@@ -131,6 +134,12 @@ export default function App() {
               Statistiche
             </button>
             <button
+              className={`nav-link ${activePage === "aziende" ? "nav-active" : ""}`}
+              onClick={() => setActivePage("aziende")}
+            >
+              Aziende
+            </button>
+            <button
               className={`nav-link ${activePage === "societa-leasing" ? "nav-active" : ""}`}
               onClick={() => setActivePage("societa-leasing")}
             >
@@ -235,6 +244,22 @@ export default function App() {
             kpiError={stats.kpiError}
             monthly={stats.monthly}
             monthlyError={stats.monthlyError}
+          />
+        )}
+
+        {activePage === "aziende" && (
+          <AziendePage
+            items={aziende.items}
+            loading={aziende.loading}
+            error={aziende.error}
+            editingId={aziende.editingId}
+            editNome={aziende.editNome}
+            saveError={aziende.saveError}
+            saving={aziende.saving}
+            onEditNomeChange={aziende.setEditNome}
+            onEdit={aziende.startEdit}
+            onCancel={aziende.cancelEdit}
+            onSave={aziende.saveEdit}
           />
         )}
 
