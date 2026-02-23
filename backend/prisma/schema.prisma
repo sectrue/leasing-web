@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model brokers {
+  id         Int      @id @default(autoincrement())
+  nome       String   @db.VarChar(255)
+  referente  String?  @db.VarChar(255)
+  telefono   String?  @db.VarChar(50)
+  email      String?  @db.VarChar(255)
+  note       String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model import_leasing_2026 {
+  NR                  Int?
+  N_INTERNO           String?   @db.VarChar(100)
+  FORNITORE           String?   @db.VarChar(255)
+  DESCRIZIONE_BENE    String?   @db.VarChar(255)
+  ALLESTIMENTO        String?   @db.VarChar(255)
+  IMPORTO             Decimal?  @db.Decimal(15, 2)
+  PRATICA_40          Int?
+  BROKER              String?   @db.VarChar(255)
+  LEASING             String?   @db.VarChar(255)
+  NR_CTR              String?   @db.VarChar(100)
+  IMPORTO_FINANZIATO  Decimal?  @db.Decimal(15, 2)
+  DATA_INIZIO         DateTime? @db.Date
+  DATA_FINE           DateTime? @db.Date
+  DURATA              String?   @db.VarChar(50)
+  IMPORTO_RATA        Decimal?  @db.Decimal(15, 2)
+  IMPORTO_RISCATTO    Decimal?  @db.Decimal(15, 2)
+  SABATINI            String?   @db.VarChar(20)
+  SABATINI_DATA       DateTime? @db.Date
+  CONCESSIONE         String?   @db.VarChar(255)
+  CUP                 String?   @db.VarChar(100)
+  IMPORTO_CONCESSIONE Decimal?  @db.Decimal(15, 2)
+  EROGAZIONI          String?   @db.VarChar(255)
+  GESTIONE_PRATICA    String?   @db.VarChar(255)
+  NOTE                String?   @db.Text
+
+  @@ignore
+}
+
+model leasing_attachments {
+  id            Int      @id @default(autoincrement())
+  contract_id   Int
+  original_name String   @db.VarChar(255)
+  stored_name   String   @db.VarChar(255)
+  stored_path   String   @db.VarChar(1024)
+  uploaded_at   DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([contract_id], map: "fk_attach_contract")
+}
+
+model leasing_contracts {
+  id                                Int       @id @default(autoincrement())
+  azienda_id                        Int
+  numero_interno                    String    @unique(map: "numero_interno") @db.VarChar(50)
+  fornitore                         String?   @db.VarChar(255)
+  descrizione_bene                  String?   @db.VarChar(255)
+  allestimento                      String?   @db.VarChar(255)
+  importo_mezzo                     Decimal?  @db.Decimal(12, 2)
+  importo_allestimento_materiale    Decimal?  @db.Decimal(12, 2)
+  importo_allestimento_agevolazioni Decimal?  @db.Decimal(12, 2)
+  mezzo                             String    @db.VarChar(255)
+  importo_totale_mezzo              Decimal   @default(0.00) @db.Decimal(12, 2)
+  broker_id                         Int?
+  leasing                           String?   @db.VarChar(255)
+  nr_ctr                            String?   @db.VarChar(100)
+  societa_leasing_id                Int?
+  importo_finanziato                Decimal   @default(0.00) @db.Decimal(12, 2)
+  data_inizio                       DateTime? @db.Date
+  data_fine                         DateTime? @db.Date
+  durata                            Int?
+  importo_rata                      Decimal?  @db.Decimal(12, 2)
+  importo_riscatto                  Decimal?  @db.Decimal(12, 2)
+  concessione                       String?   @db.VarChar(255)
+  cup                               String?   @db.VarChar(100)
+  importo_concessione               Decimal?  @db.Decimal(12, 2)
+  erogazioni                        String?   @db.VarChar(255)
+  gestione_pratica                  String?   @db.VarChar(255)
+  note                              String?   @db.Text
+  created_at                        DateTime  @default(now()) @db.Timestamp(0)
+  updated_at                        DateTime  @default(now()) @db.Timestamp(0)
+  lotto_id                          Int?
+  broker                            String?   @db.VarChar(255)
+  importo_pratica_40                String?   @db.VarChar(255)
+  pratica_id                        Int?
+
+  @@index([azienda_id], map: "idx_leasing_contracts_azienda_id")
+  @@index([broker_id], map: "fk_broker")
+  @@index([societa_leasing_id], map: "fk_societa")
+  @@index([pratica_id], map: "idx_leasing_contracts_pratica_id")
+  @@index([lotto_id], map: "idx_lotto_id")
+}
+
+model leasing_lotti {
+  id         Int      @id @default(autoincrement())
+  nome       String   @db.VarChar(255)
+  note       String?  @db.VarChar(255)
+  created_at DateTime @default(now()) @db.DateTime(0)
+}
+
+model aziende {
+  id         Int      @id @default(autoincrement())
+  nome       String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+}
+
+model leasing_pratiche {
+  id                            Int       @id @default(autoincrement())
+  azienda_id                    Int
+  nr_ctr                        String?   @db.VarChar(100)
+  leasing                       String?   @db.VarChar(200)
+  societa_leasing_id            Int?
+  broker                        String?   @db.VarChar(200)
+  data_inizio                   DateTime? @db.Date
+  data_fine                     DateTime? @db.Date
+  durata                        Int?
+  importo_rata                  Decimal?  @db.Decimal(18, 2)
+  importo_anticipo              Decimal?  @db.Decimal(18, 2)
+  importo_riscatto              Decimal?  @db.Decimal(18, 2)
+  pratica_40                    String?   @db.VarChar(100)
+  created_at                    DateTime  @default(now()) @db.DateTime(0)
+  updated_at                    DateTime  @default(now()) @db.DateTime(0)
+  sabatini                      Boolean   @default(false)
+  importo_sabatini              Decimal?  @db.Decimal(12, 2)
+  sabatini_data                 DateTime? @db.Date
+  sabatini_stato                String?   @db.VarChar(50)
+  protocollo_domanda            String?   @db.VarChar(100)
+  data_domanda                  DateTime? @db.Date
+  cup                           String?   @db.VarChar(100)
+  decreto_numero                String?   @db.VarChar(100)
+  decreto_data                  DateTime? @db.Date
+  cor_id                        String?   @db.VarChar(100)
+  contributo_tipo               String?   @db.VarChar(50)
+  contributo_teorico_tot        Decimal?  @db.Decimal(12, 2)
+  contributo_ammesso_tot        Decimal?  @db.Decimal(12, 2)
+  note_sabatini                 String?   @db.Text
+  data_stipula_prevista         DateTime? @db.Date
+  data_stipula_effettiva        DateTime? @db.Date
+  data_consegna_prevista        DateTime? @db.Date
+  data_consegna_effettiva       DateTime? @db.Date
+  data_rendicontazione_scadenza DateTime? @db.Date
+  data_rendicontazione_inviata  DateTime? @db.Date
+  data_erogazione_prevista      DateTime? @db.Date
+  data_erogazione_effettiva     DateTime? @db.Date
+
+  @@index([azienda_id], map: "idx_pratiche_azienda_id")
+  @@index([leasing, nr_ctr], map: "ix_pratiche_key")
+  @@index([societa_leasing_id], map: "idx_pratiche_societa_leasing_id")
+  @@index([sabatini_stato], map: "idx_pratiche_sabatini_stato")
+  @@index([data_rendicontazione_scadenza], map: "idx_pratiche_rendicontazione_scadenza")
+}
+
+model leasing_pratiche_attachments {
+  id            Int      @id @default(autoincrement())
+  azienda_id    Int
+  pratica_id    Int
+  original_name String   @db.VarChar(255)
+  stored_name   String   @db.VarChar(255)
+  stored_path   String   @db.Text
+  uploaded_at   DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([azienda_id], map: "idx_pratica_attachments_azienda_id")
+  @@index([pratica_id], map: "idx_pratica_id")
+}
+
+model sabatini_erogazioni {
+  id            Int       @id @default(autoincrement())
+  azienda_id    Int
+  pratica_id    Int
+  numero_rata   Int?
+  importo       Decimal?  @db.Decimal(12, 2)
+  data_prevista DateTime? @db.Date
+  data_pagata   DateTime? @db.Date
+  stato         String    @default("prevista") @db.VarChar(30)
+  note          String?   @db.Text
+  created_at    DateTime  @default(now()) @db.DateTime(0)
+  updated_at    DateTime  @default(now()) @db.DateTime(0)
+
+  @@index([azienda_id], map: "idx_sabatini_erogazioni_azienda_id")
+  @@index([pratica_id], map: "idx_sabatini_erogazioni_pratica")
+  @@index([stato], map: "idx_sabatini_erogazioni_stato")
+}
+
+model sabatini_eventi {
+  id          Int      @id @default(autoincrement())
+  azienda_id  Int
+  pratica_id  Int
+  data_evento DateTime @default(now()) @db.DateTime(0)
+  tipo        String   @db.VarChar(50)
+  descrizione String?  @db.Text
+  utente_id   Int?
+  created_at  DateTime @default(now()) @db.DateTime(0)
+
+  @@index([azienda_id], map: "idx_sabatini_eventi_azienda_id")
+  @@index([pratica_id], map: "idx_sabatini_eventi_pratica")
+  @@index([data_evento], map: "idx_sabatini_eventi_data")
+}
+
+model societa_leasing {
+  id         Int      @id @default(autoincrement())
+  azienda_id Int
+  nome       String   @db.VarChar(255)
+  referente  String?  @db.VarChar(255)
+  telefono   String?  @db.VarChar(50)
+  email      String?  @db.VarChar(255)
+  note       String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([azienda_id], map: "idx_societa_leasing_azienda_id")
+}
+
+model users {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique @db.VarChar(50)
+  password_hash String   @db.VarChar(255)
+  role          String   @db.VarChar(20)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @db.Timestamp(0)
+}
