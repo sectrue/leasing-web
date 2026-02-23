@@ -1,4 +1,4 @@
-﻿# Leasing Web - Contesto di lavoro
+# Leasing Web - Contesto di lavoro
 
 Data: 2026-02-12
 
@@ -184,7 +184,7 @@ Data: 2026-02-12
 - Rifinire ulteriormente pagina Pratiche (UX).
 - Migliorare validazioni (client+server) per form pratica/mezzo.
 - Statistiche avanzate (grafici reali aggiuntivi).
-﻿
+
 ## Aggiornamento 2026-02-16
 
 ### Infrastruttura / operativita
@@ -236,10 +236,10 @@ Data: 2026-02-12
   - Data erogazione prevista
   - Data erogazione effettiva
 - Frontend aggiornato:
-  - rontend/src/components/PraticaFormModal.tsx
-  - rontend/src/hooks/usePraticaForm.ts
-  - rontend/src/types.ts
-- Backend aggiornato (ackend/src/index.ts): rimosse le validazioni che rendevano obbligatorie le date sopra per gli stati Sabatini.
+  - frontend/src/components/PraticaFormModal.tsx
+  - frontend/src/hooks/usePraticaForm.ts
+  - frontend/src/types.ts
+- Backend aggiornato (backend/src/index.ts): rimosse le validazioni che rendevano obbligatorie le date sopra per gli stati Sabatini.
 - Applicazione effettuata direttamente su server remoto leasing-server via SSH.
 - Deploy eseguito:
   - backend riavviato con PM2
