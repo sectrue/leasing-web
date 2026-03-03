@@ -67,6 +67,16 @@ export default function App() {
     return importo + pratica40 + allestimento;
   }
 
+  const pageTitleMap: Record<typeof activePage, string> = {
+    dashboard: "Dashboard",
+    pratiche: "Pratiche",
+    mezzi: "Mezzi",
+    statistiche: "Statistiche",
+    aziende: "Aziende",
+    "societa-leasing": "Societa Leasing"
+  };
+  const aziendaSelezionata = aziende.items.find((a) => a.id === aziende.aziendaId) || null;
+
   if (!auth.token || !auth.user) {
     return (
       <div className="min-h-screen bg-[#f4f6f9] text-[#1f2937]">
@@ -103,75 +113,103 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f4f6f9] text-[#1f2937]">
       <header className="header-bar">
-        <div className="container-1200 flex flex-wrap items-center justify-between gap-4 px-6 py-5">
-          <div>
-            <p className="header-meta">Leasing Manager</p>
-            <h1 className="page-title">Dashboard pratiche</h1>
-          </div>
-          <nav className="flex flex-wrap items-center gap-2">
-            <button
-              className={`nav-link ${activePage === "dashboard" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("dashboard")}
-            >
-              Dashboard
-            </button>
-            <button
-              className={`nav-link ${activePage === "pratiche" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("pratiche")}
-            >
-              Pratiche
-            </button>
-            <button
-              className={`nav-link ${activePage === "mezzi" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("mezzi")}
-            >
-              Mezzi
-            </button>
-            <button
-              className={`nav-link ${activePage === "statistiche" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("statistiche")}
-            >
-              Statistiche
-            </button>
-            <button
-              className={`nav-link ${activePage === "aziende" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("aziende")}
-            >
-              Aziende
-            </button>
-            <button
-              className={`nav-link ${activePage === "societa-leasing" ? "nav-active" : ""}`}
-              onClick={() => setActivePage("societa-leasing")}
-            >
-              Societa Leasing
-            </button>
-          </nav>
-          <div className="flex items-center gap-3 text-sm text-[#6b7280]">
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wide text-[#6b7280]">Azienda</span>
-              <select
-                className="select text-sm"
-                value={aziende.aziendaId ?? ""}
-                onChange={(e) => aziende.setAziendaId(Number(e.target.value))}
-                disabled={aziende.loading || aziende.items.length === 0}
-              >
-                {aziende.items.length === 0 && <option value="">Nessuna</option>}
-                {aziende.items.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nome}
-                  </option>
-                ))}
-              </select>
+        <div className="container-1200 px-6 py-5">
+          <div className="app-header-top">
+            <div className="app-header-left">
+              <div>
+                <p className="header-meta">Leasing Manager</p>
+                <h1 className="page-title">Console operativa</h1>
+              </div>
+
+              <nav className="app-nav">
+                <div className="app-nav-group">
+                  <button
+                    className={`nav-link ${activePage === "dashboard" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("dashboard")}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    className={`nav-link ${activePage === "pratiche" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("pratiche")}
+                  >
+                    Pratiche
+                  </button>
+                  <button
+                    className={`nav-link ${activePage === "mezzi" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("mezzi")}
+                  >
+                    Mezzi
+                  </button>
+                </div>
+
+                <div className="app-nav-group app-nav-secondary">
+                  <button
+                    className={`nav-link ${activePage === "statistiche" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("statistiche")}
+                  >
+                    Statistiche
+                  </button>
+                  <button
+                    className={`nav-link ${activePage === "aziende" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("aziende")}
+                  >
+                    Aziende
+                  </button>
+                  <button
+                    className={`nav-link ${activePage === "societa-leasing" ? "nav-active" : ""}`}
+                    onClick={() => setActivePage("societa-leasing")}
+                  >
+                    Societa Leasing
+                  </button>
+                </div>
+              </nav>
             </div>
-            <span className="rounded-full bg-[#f1f5f9] px-3 py-1">
-              {auth.user.username} · {auth.user.role}
-            </span>
-            <button className="btn btn-outline" onClick={auth.logout}>Esci</button>
+
+            <div className="app-header-user">
+              <span className="user-pill">
+                {auth.user.username} · {auth.user.role}
+              </span>
+              <button className="btn btn-outline btn-sm" onClick={auth.logout}>Esci</button>
+            </div>
           </div>
+          <div className="app-header-divider" />
         </div>
       </header>
 
       <main className="container-1200 px-6 py-8">
+        <section className="page-context-strip">
+          <div className="page-context-title">
+            <p className="header-meta">Pagina</p>
+            <h2 className="section-title">{pageTitleMap[activePage]}</h2>
+          </div>
+          <div className="page-context-controls">
+            <div className="azienda-control">
+              <span className="azienda-control-label">Azienda</span>
+              <div className="azienda-control-select">
+                <select
+                  className="select text-sm"
+                  value={aziende.aziendaId ?? ""}
+                  onChange={(e) => aziende.setAziendaId(Number(e.target.value))}
+                  disabled={aziende.loading || aziende.items.length === 0}
+                >
+                  {aziende.items.length === 0 && <option value="">Nessuna</option>}
+                  {aziende.items.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {aziendaSelezionata && (
+              <span className="header-kpi-pill">
+                Rimanente: {formatCurrency(aziendaSelezionata.plafond_rimanente || 0)}
+              </span>
+            )}
+          </div>
+        </section>
+
         {activePage === "dashboard" && (
           <DashboardPage kpi={stats.kpi} kpiError={stats.kpiError} />
         )}
@@ -197,6 +235,7 @@ export default function App() {
             page={pratiche.page}
             totalPages={totalPages}
             pageSize={pratiche.pageSize}
+            totalRows={pratiche.totalRows}
             onPrev={() => pratiche.setPage(Math.max(1, pratiche.page - 1))}
             onNext={() => pratiche.setPage(Math.min(totalPages, pratiche.page + 1))}
             onPageSize={(v) => {
@@ -207,6 +246,9 @@ export default function App() {
             onEditPratica={praticaForm.openEditPratica}
             onDeletePratica={pratiche.deletePratica}
             onMezzi={mezzi.loadMezzi}
+            onPrintAll={pratiche.printPraticheAll}
+            onPrintPratica={pratiche.printPratica}
+            printing={pratiche.pratichePrintLoading}
             statusBadgeClass={statusBadgeClass}
           />
         )}
@@ -254,10 +296,26 @@ export default function App() {
             error={aziende.error}
             editingId={aziende.editingId}
             editNome={aziende.editNome}
+            editPlafond={aziende.editPlafond}
+            editUtilizzatoPregresso={aziende.editUtilizzatoPregresso}
+            newNome={aziende.newNome}
+            newPlafond={aziende.newPlafond}
+            newUtilizzatoPregresso={aziende.newUtilizzatoPregresso}
+            createError={aziende.createError}
             saveError={aziende.saveError}
+            deleteError={aziende.deleteError}
+            creating={aziende.creating}
             saving={aziende.saving}
+            deletingId={aziende.deletingId}
             onEditNomeChange={aziende.setEditNome}
+            onEditPlafondChange={aziende.setEditPlafond}
+            onEditUtilizzatoPregressoChange={aziende.setEditUtilizzatoPregresso}
+            onNewNomeChange={aziende.setNewNome}
+            onNewPlafondChange={aziende.setNewPlafond}
+            onNewUtilizzatoPregressoChange={aziende.setNewUtilizzatoPregresso}
             onEdit={aziende.startEdit}
+            onCreate={aziende.createItem}
+            onDelete={aziende.deleteItem}
             onCancel={aziende.cancelEdit}
             onSave={aziende.saveEdit}
           />

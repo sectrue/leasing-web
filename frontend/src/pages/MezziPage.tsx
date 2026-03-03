@@ -1,5 +1,5 @@
 import type { MezzoRow, PraticaOption } from "../types";
-import { formatCurrency } from "../lib/format";
+import { formatCurrency, formatPraticaOptionLabel } from "../lib/format";
 
 type Props = {
   mezziSearch: string;
@@ -60,8 +60,7 @@ export function MezziPage({
               <option value="">Tutte le pratiche</option>
               {praticaOptions.map((p) => (
                 <option key={p.id} value={String(p.id)}>
-                  {p.nr_ctr || `Pratica #${p.id}`} {p.leasing ? `- ${p.leasing}` : ""}{" "}
-                  {p.broker ? `(${p.broker})` : ""}
+                  {formatPraticaOptionLabel(p)}
                 </option>
               ))}
             </select>

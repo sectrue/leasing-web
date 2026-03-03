@@ -1,9 +1,18 @@
 export type User = { id: number; username: string; role: string };
 
-export type Azienda = { id: number; nome: string; created_at: string };
+export type Azienda = {
+  id: number;
+  nome: string;
+  created_at: string;
+  plafond?: string | number | null;
+  utilizzato_pregresso?: string | number | null;
+  utilizzato_sabatini?: string | number | null;
+  plafond_rimanente?: string | number | null;
+};
 
 export type PraticaRow = {
   id: number;
+  nr_pratica: string | null;
   nr_ctr: string | null;
   leasing: string | null;
   societa_leasing_id: number | null;
@@ -70,6 +79,7 @@ export type PraticaFormState = {
   leasing: string;
   societa_leasing_id: string;
   broker: string;
+  nr_pratica: string;
   nr_ctr: string;
   data_inizio: string;
   data_fine: string;
@@ -99,6 +109,7 @@ export type PraticaAttachment = {
 
 export type PraticaOption = {
   id: number;
+  nr_pratica: string | null;
   nr_ctr: string | null;
   leasing: string | null;
   societa_leasing_id?: number | null;

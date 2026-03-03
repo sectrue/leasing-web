@@ -1,3 +1,5 @@
+import { formatPraticaOptionLabel } from "../lib/format";
+
 type MezzoForm = {
   numero_interno: string;
   mezzo: string;
@@ -16,7 +18,7 @@ type Props = {
   error: string | null;
   form: MezzoForm;
   praticaId: number | null;
-  praticaOptions: { id: number; nr_ctr: string | null; leasing: string | null; broker: string | null }[];
+  praticaOptions: { id: number; nr_pratica: string | null; nr_ctr: string | null; leasing: string | null; broker: string | null }[];
   onPraticaChange: (id: number | null) => void;
   onClose: () => void;
   onChange: (next: MezzoForm) => void;
@@ -63,8 +65,7 @@ export function MezzoFormModal({
               <option value="">Seleziona pratica</option>
               {praticaOptions.map((p) => (
                 <option key={p.id} value={String(p.id)}>
-                  {p.nr_ctr || `Pratica #${p.id}`} {p.leasing ? `- ${p.leasing}` : ""}{" "}
-                  {p.broker ? `(${p.broker})` : ""}
+                  {formatPraticaOptionLabel(p)}
                 </option>
               ))}
             </select>

@@ -193,7 +193,70 @@ async function start() {
   });
 
   app.get("/aziende", { preHandler: [requireAuth] }, async () => {
-    return prisma.aziende.findMany({ orderBy: { id: "asc" } });
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT
+        a.id,
+        a.nome,
+        a.created_at,
+        a.plafond,
+        a.utilizzato_pregresso,
+        COALESCE((
+          SELECT SUM(COALESCE(pratica_tot.totale, 0))
+          FROM leasing_pratiche p
+          LEFT JOIN (
+            SELECT
+              lc.azienda_id,
+              lc.pratica_id,
+              SUM(COALESCE(lc.importo_finanziato, 0)) AS totale
+            FROM leasing_contracts lc
+            WHERE lc.pratica_id IS NOT NULL
+            GROUP BY lc.azienda_id, lc.pratica_id
+          ) pratica_tot
+            ON pratica_tot.azienda_id = p.azienda_id
+           AND pratica_tot.pratica_id = p.id
+          WHERE p.azienda_id = a.id
+            AND p.sabatini = 1
+        ), 0) AS utilizzato_sabatini
+      FROM aziende a
+      ORDER BY a.id ASC
+    `;
+
+    return rows.map((r) => {
+      const plafond = parseNum(r.plafond) ?? 0;
+      const utilizzatoPregresso = parseNum(r.utilizzato_pregresso) ?? 0;
+      const utilizzatoSabatini = parseNum(r.utilizzato_sabatini) ?? 0;
+      const plafondRimanente = plafond - (utilizzatoPregresso + utilizzatoSabatini);
+      return {
+        id: Number(r.id),
+        nome: r.nome,
+        created_at: r.created_at,
+        plafond: plafond.toFixed(2),
+        utilizzato_pregresso: utilizzatoPregresso.toFixed(2),
+        utilizzato_sabatini: utilizzatoSabatini.toFixed(2),
+        plafond_rimanente: plafondRimanente.toFixed(2)
+      };
+    });
+  });
+
+  app.post("/aziende", { preHandler: [requireAuth] }, async (request, reply) => {
+    const nome = cleanString((request.body as any)?.nome);
+    if (!nome) return reply.code(400).send({ error: "Nome azienda obbligatorio" });
+
+    const plafond = parseNum((request.body as any)?.plafond) ?? 0;
+    const utilizzatoPregresso = parseNum((request.body as any)?.utilizzato_pregresso) ?? 0;
+    if (plafond < 0 || utilizzatoPregresso < 0) {
+      return reply.code(400).send({ error: "Plafond e utilizzato pregresso non possono essere negativi" });
+    }
+
+    const created = await prisma.aziende.create({
+      data: { nome }
+    });
+    await prisma.$executeRaw`
+      UPDATE aziende
+      SET plafond = ${plafond}, utilizzato_pregresso = ${utilizzatoPregresso}
+      WHERE id = ${created.id}
+    `;
+    return reply.code(201).send(created);
   });
 
   app.put("/aziende/:id", { preHandler: [requireAuth] }, async (request, reply) => {
@@ -202,6 +265,11 @@ async function start() {
 
     const nome = cleanString((request.body as any)?.nome);
     if (!nome) return reply.code(400).send({ error: "Nome azienda obbligatorio" });
+    const plafond = parseNum((request.body as any)?.plafond) ?? 0;
+    const utilizzatoPregresso = parseNum((request.body as any)?.utilizzato_pregresso) ?? 0;
+    if (plafond < 0 || utilizzatoPregresso < 0) {
+      return reply.code(400).send({ error: "Plafond e utilizzato pregresso non possono essere negativi" });
+    }
 
     const existing = await prisma.aziende.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ error: "Azienda non trovata" });
@@ -210,11 +278,70 @@ async function start() {
       where: { id },
       data: { nome }
     });
+    await prisma.$executeRaw`
+      UPDATE aziende
+      SET plafond = ${plafond}, utilizzato_pregresso = ${utilizzatoPregresso}
+      WHERE id = ${id}
+    `;
     return updated;
+  });
+
+  app.delete("/aziende/:id", { preHandler: [requireAuth] }, async (request, reply) => {
+    const id = Number((request.params as any)?.id || 0);
+    if (!id) return reply.code(400).send({ error: "Azienda non valida" });
+
+    const existing = await prisma.aziende.findUnique({ where: { id } });
+    if (!existing) return reply.code(404).send({ error: "Azienda non trovata" });
+
+    const refs = await Promise.all([
+      prisma.leasing_pratiche.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "pratiche",
+        label: "pratiche",
+        count
+      })),
+      prisma.leasing_contracts.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "mezzi",
+        label: "mezzi",
+        count
+      })),
+      prisma.societa_leasing.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "societa_leasing",
+        label: "societa leasing",
+        count
+      })),
+      prisma.leasing_pratiche_attachments.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "allegati_pratiche",
+        label: "allegati pratiche",
+        count
+      })),
+      prisma.sabatini_erogazioni.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "sabatini_erogazioni",
+        label: "erogazioni Sabatini",
+        count
+      })),
+      prisma.sabatini_eventi.count({ where: { azienda_id: id } }).then((count) => ({
+        key: "sabatini_eventi",
+        label: "eventi Sabatini",
+        count
+      }))
+    ]);
+
+    const blocking = refs.filter((r) => r.count > 0);
+    if (blocking.length > 0) {
+      const details = blocking.map((r) => `${r.label}: ${r.count}`).join(", ");
+      return reply.code(409).send({
+        error: `Impossibile eliminare azienda: presenti dati collegati (${details})`,
+        refs: blocking
+      });
+    }
+
+    await prisma.aziende.delete({ where: { id } });
+    return reply.send({ ok: true });
   });
 
   const praticaPublicSelect = {
     id: true,
+    nr_pratica: true,
     nr_ctr: true,
     leasing: true,
     societa_leasing_id: true,
@@ -278,6 +405,7 @@ async function start() {
     const where: any = { azienda_id: aziendaId };
     if (q) {
       where.OR = [
+        { nr_pratica: { contains: q } },
         { nr_ctr: { contains: q } },
         { leasing: { contains: q } },
         { broker: { contains: q } }
@@ -368,6 +496,7 @@ async function start() {
 
       return {
         id: p.id,
+        nr_pratica: p.nr_pratica,
         nr_ctr: p.nr_ctr,
         leasing: p.leasing || (p.societa_leasing_id ? societaById.get(p.societa_leasing_id) || null : null),
         societa_leasing_id: p.societa_leasing_id,
@@ -388,6 +517,153 @@ async function start() {
       total: totalCount,
       page,
       pageSize
+    };
+  });
+
+  app.get("/pratiche/print", { preHandler: [requireAuth, requireAzienda] }, async (request) => {
+    const aziendaId = (request as RequestWithAzienda).aziendaId as number;
+    const query = request.query as {
+      q?: string;
+      sabatini?: string;
+      status?: string;
+      praticaId?: string;
+      leasing?: string;
+      broker?: string;
+    };
+    const q = (query?.q || "").trim();
+    const sabatini = (query?.sabatini || "").toLowerCase();
+    const status = (query?.status || "").toLowerCase();
+    const praticaId = Number(query?.praticaId || 0);
+    const leasing = (query?.leasing || "").trim();
+    const broker = (query?.broker || "").trim();
+    const today = dayjs().startOf("day").toDate();
+
+    const where: any = { azienda_id: aziendaId };
+    if (q) {
+      where.OR = [
+        { nr_pratica: { contains: q } },
+        { nr_ctr: { contains: q } },
+        { leasing: { contains: q } },
+        { broker: { contains: q } }
+      ];
+    }
+    if (sabatini === "true" || sabatini === "1") {
+      where.sabatini = true;
+    }
+    if (praticaId) {
+      where.id = praticaId;
+    }
+    if (leasing) {
+      where.leasing = leasing;
+    }
+    if (broker) {
+      where.broker = broker;
+    }
+    if (status === "attiva") {
+      where.AND = [
+        { data_inizio: { not: null } },
+        { OR: [{ data_fine: null }, { data_fine: { gt: today } }] }
+      ];
+    } else if (status === "chiusa") {
+      where.data_fine = { lte: today };
+    } else if (status === "lavorazione") {
+      where.AND = [{ data_inizio: null }, { data_fine: null }];
+    }
+
+    const pratiche = await prisma.leasing_pratiche.findMany({
+      where,
+      select: praticaPublicSelect,
+      orderBy: { id: "asc" },
+      take: 5000
+    });
+
+    const societaIds = Array.from(
+      new Set(
+        pratiche
+          .map((p: any) => p.societa_leasing_id)
+          .filter((v: any): v is number => typeof v === "number" && Number.isFinite(v))
+      )
+    );
+    const societaRows = societaIds.length
+      ? await prisma.societa_leasing.findMany({
+          where: { id: { in: societaIds } },
+          select: { id: true, nome: true }
+        })
+      : [];
+    const societaById = new Map(societaRows.map((r: any) => [r.id, r.nome]));
+
+    const ids = pratiche.map((p: any) => p.id);
+    const mezzi = ids.length
+      ? await prisma.leasing_contracts.findMany({
+          where: { pratica_id: { in: ids }, azienda_id: aziendaId },
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            pratica_id: true,
+            numero_interno: true,
+            mezzo: true,
+            fornitore: true,
+            descrizione_bene: true,
+            importo_finanziato: true
+          }
+        })
+      : [];
+
+    const mezziByPratica = new Map<number, any[]>();
+    for (const m of mezzi) {
+      if (!m.pratica_id) continue;
+      if (!mezziByPratica.has(m.pratica_id)) mezziByPratica.set(m.pratica_id, []);
+      mezziByPratica.get(m.pratica_id)!.push(m);
+    }
+
+    const rows = pratiche.map((p: any) => {
+      const list = mezziByPratica.get(p.id) || [];
+      const total = list.reduce((sum, item) => sum + Number(item.importo_finanziato || 0), 0);
+      const count = list.length;
+
+      let stato = "In lavorazione";
+      if (p.data_fine) {
+        stato = dayjs(p.data_fine).isBefore(today, "day") || dayjs(p.data_fine).isSame(today, "day")
+          ? "Chiusa"
+          : "Attiva";
+      } else if (p.data_inizio) {
+        stato = "Attiva";
+      }
+
+      return {
+        id: p.id,
+        nr_pratica: p.nr_pratica,
+        nr_ctr: p.nr_ctr,
+        leasing: p.leasing || (p.societa_leasing_id ? societaById.get(p.societa_leasing_id) || null : null),
+        societa_leasing_id: p.societa_leasing_id,
+        societa_leasing_nome: p.societa_leasing_id ? societaById.get(p.societa_leasing_id) || null : null,
+        broker: p.broker,
+        data_inizio: p.data_inizio,
+        data_fine: p.data_fine,
+        sabatini: p.sabatini,
+        sabatini_stato: p.sabatini_stato,
+        mezzi_count: count,
+        total_importo_finanziato: total.toString(),
+        stato,
+        mezzi: list.map((m: any) => ({
+          id: m.id,
+          numero_interno: m.numero_interno,
+          mezzo: m.mezzo,
+          fornitore: m.fornitore,
+          descrizione_bene: m.descrizione_bene,
+          importo_finanziato: m.importo_finanziato
+        }))
+      };
+    });
+
+    const azienda = await prisma.aziende.findFirst({
+      where: { id: aziendaId },
+      select: { id: true, nome: true }
+    });
+
+    return {
+      azienda,
+      items: rows
     };
   });
 
@@ -479,6 +755,7 @@ async function start() {
       take: 200,
       select: {
         id: true,
+        nr_pratica: true,
         nr_ctr: true,
         leasing: true,
         societa_leasing_id: true,
@@ -604,6 +881,7 @@ async function start() {
     const leasing = (body?.leasing || "").trim();
     const broker = (body?.broker || "").trim();
     const nrCtr = (body?.nr_ctr || "").trim();
+    const nrPratica = cleanString(body?.nr_pratica);
     const societaLeasingId = parseIntMaybe(body?.societa_leasing_id);
     const societaLeasing = societaLeasingId
       ? await prisma.societa_leasing.findFirst({
@@ -616,8 +894,8 @@ async function start() {
     }
     const leasingResolved = leasing || societaLeasing?.nome || "";
 
-    if (!leasingResolved && !broker && !nrCtr) {
-      return reply.code(400).send({ error: "Compila almeno Leasing, Broker o Nr Contratto." });
+    if (!leasingResolved && !broker && !nrCtr && !nrPratica) {
+      return reply.code(400).send({ error: "Compila almeno Leasing, Broker, Nr Contratto o Nr Pratica." });
     }
 
     const sabatiniStato = cleanString(body?.sabatini_stato)?.toLowerCase();
@@ -636,6 +914,7 @@ async function start() {
         leasing: leasingResolved || null,
         societa_leasing_id: societaLeasing?.id || null,
         broker: broker || null,
+        nr_pratica: nrPratica || null,
         nr_ctr: nrCtr || null,
         data_inizio: parseDate(body?.data_inizio),
         data_fine: parseDate(body?.data_fine),
@@ -698,6 +977,7 @@ async function start() {
     const leasing = (body?.leasing || "").trim();
     const broker = (body?.broker || "").trim();
     const nrCtr = (body?.nr_ctr || "").trim();
+    const nrPratica = cleanString(body?.nr_pratica);
     const societaLeasingId = parseIntMaybe(body?.societa_leasing_id);
     const societaLeasing = societaLeasingId
       ? await prisma.societa_leasing.findFirst({
@@ -710,8 +990,8 @@ async function start() {
     }
     const leasingResolved = leasing || societaLeasing?.nome || "";
 
-    if (!leasingResolved && !broker && !nrCtr) {
-      return reply.code(400).send({ error: "Compila almeno Leasing, Broker o Nr Contratto." });
+    if (!leasingResolved && !broker && !nrCtr && !nrPratica) {
+      return reply.code(400).send({ error: "Compila almeno Leasing, Broker, Nr Contratto o Nr Pratica." });
     }
 
     const sabatiniStato = cleanString(body?.sabatini_stato)?.toLowerCase();
@@ -740,6 +1020,7 @@ async function start() {
         leasing: leasingResolved || null,
         societa_leasing_id: societaLeasing?.id || null,
         broker: broker || null,
+        nr_pratica: nrPratica || null,
         nr_ctr: nrCtr || null,
         data_inizio: parseDate(body?.data_inizio),
         data_fine: parseDate(body?.data_fine),

@@ -31,6 +31,7 @@ function emptyPraticaForm(): PraticaFormState {
     leasing: "",
     societa_leasing_id: "",
     broker: "",
+    nr_pratica: "",
     nr_ctr: "",
     data_inizio: "",
     data_fine: "",
@@ -176,6 +177,7 @@ export function usePraticaForm({ token, onSaved, aziendaId }: UsePraticaFormPara
         leasing: data.leasing || "",
         societa_leasing_id: data.societa_leasing_id ? String(data.societa_leasing_id) : "",
         broker: data.broker || "",
+        nr_pratica: data.nr_pratica || "",
         nr_ctr: data.nr_ctr || "",
         data_inizio: data.data_inizio ? data.data_inizio.slice(0, 10) : "",
         data_fine: data.data_fine ? data.data_fine.slice(0, 10) : "",
@@ -261,12 +263,13 @@ export function usePraticaForm({ token, onSaved, aziendaId }: UsePraticaFormPara
       return;
     }
 
-    const payload = {
-      leasing: praticaForm.leasing,
-      societa_leasing_id: praticaForm.societa_leasing_id || null,
-      broker: praticaForm.broker,
-      nr_ctr: praticaForm.nr_ctr,
-      data_inizio: praticaForm.data_inizio || null,
+      const payload = {
+        leasing: praticaForm.leasing,
+        societa_leasing_id: praticaForm.societa_leasing_id || null,
+        broker: praticaForm.broker,
+        nr_pratica: praticaForm.nr_pratica,
+        nr_ctr: praticaForm.nr_ctr,
+        data_inizio: praticaForm.data_inizio || null,
       data_fine: praticaForm.data_fine || null,
       durata: praticaForm.durata || null,
       importo_rata: praticaForm.importo_rata || null,

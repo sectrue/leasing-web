@@ -108,14 +108,17 @@ model leasing_lotti {
 }
 
 model aziende {
-  id         Int      @id @default(autoincrement())
-  nome       String   @db.VarChar(255)
-  created_at DateTime @default(now()) @db.Timestamp(0)
+  id                  Int      @id @default(autoincrement())
+  nome                String   @db.VarChar(255)
+  plafond             Decimal  @default(0.00) @db.Decimal(15, 2)
+  utilizzato_pregresso Decimal @default(0.00) @db.Decimal(15, 2)
+  created_at          DateTime @default(now()) @db.Timestamp(0)
 }
 
 model leasing_pratiche {
   id                            Int       @id @default(autoincrement())
   azienda_id                    Int
+  nr_pratica                    String?   @db.VarChar(100)
   nr_ctr                        String?   @db.VarChar(100)
   leasing                       String?   @db.VarChar(200)
   societa_leasing_id            Int?

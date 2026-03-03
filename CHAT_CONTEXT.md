@@ -1,6 +1,6 @@
 # Leasing Web - Contesto di lavoro
 
-Data: 2026-02-12
+Data: 2026-03-03
 
 ## Stato progetto
 - App web con backend Fastify + Prisma (MariaDB) e frontend React (Vite + Tailwind).
@@ -59,7 +59,8 @@ Data: 2026-02-12
   - Ricerca con campo grande + 4 filtri in riga (tutte pratiche, pratica specifica, leasing, broker).
   - Tabella pratiche paginata.
   - Pulsante `Nuova pratica` (modal).
-  - Pulsanti riga: `Mezzi`, `Modifica`.
+  - Pulsanti riga: `Mezzi`, `Stampa`, `Modifica`.
+  - Toolbar: pulsante `Stampa tutte`.
 - Mezzi:
   - Lista globale (pagina `Mezzi`).
   - Modal mezzi per pratica con `Nuovo mezzo`, `Modifica`, `Elimina`.
@@ -137,10 +138,16 @@ Data: 2026-02-12
 ## Noti problemi/attenzioni
 - Se VPN staccata → backend non raggiunge DB → login fallisce.
 - Preview allegati funziona solo per immagini (altre estensioni: nessuna preview).
+## Stampa pratiche (PDF)
+- Stampa lato frontend con finestra `window.print()` (browser → Salva in PDF).
+- “Stampa tutte” usa i filtri correnti; stampa singola per riga.
+- Dati stampa:
+  - Pratica: solo campi presenti nel form Pratica.
+  - Mezzi: tabella con soli campi presenti nel form Mezzo.
 
 ## Mappa DB (tabelle usate)
 - `leasing_pratiche`
-  - campi: `id`, `nr_ctr`, `leasing`, `broker`, `data_inizio`, `data_fine`, `durata`,
+  - campi: `id`, `nr_pratica`, `nr_ctr`, `leasing`, `broker`, `data_inizio`, `data_fine`, `durata`,
     `importo_rata`, `importo_riscatto`, `pratica_40`, `sabatini`, `importo_sabatini`, `sabatini_data`,
     `created_at`, `updated_at`
 - `leasing_contracts` (Mezzi)
@@ -176,6 +183,17 @@ Data: 2026-02-12
   - Implementata gestione pratiche (CRUD + allegati).
   - Implementata gestione mezzi (CRUD + calcolo importi).
   - Dashboard KPI e filtri pratiche/mezzi.
+## Aggiornamento 2026-03-03
+
+### Pratiche
+- Colonna “Numero contratto” separata da “Numero pratica”.
+- Aggiunto `nr_pratica` (opzionale) in DB, API e form.
+- Backfill `nr_pratica` (ordine per azienda: più vecchia → più recente).
+
+### Stampa
+- Stampa pratiche/mezzi via frontend (HTML + `window.print()`).
+- Pulsanti: “Stampa tutte” e “Stampa” per riga.
+- Stampa include solo campi presenti nei form.
 ## File principali
 - Backend: `backend/src/index.ts`
 - Frontend: `frontend/src/App.tsx` + `src/pages/*` + `src/hooks/*` + `src/components/*`
@@ -238,6 +256,60 @@ Data: 2026-02-12
 - Frontend aggiornato:
   - frontend/src/components/PraticaFormModal.tsx
   - frontend/src/hooks/usePraticaForm.ts
+
+## Aggiornamento 2026-02-24 (Contesto operativo reale server)
+
+### Punto critico (evitare perdite di tempo)
+- L'utente lavora in SSH su server (`192.168.0.254`) e guarda il frontend **online** su `http://192.168.0.254` (senza porta).
+- Il frontend online **NON** e' il Vite dev server (`:5173`) e **NON** legge automaticamente `frontend/src/*`.
+- Il sito online e' servito da **Nginx** con root statica in:
+  - `/var/www/leasing-web`
+
+### Dev vs Online (distinzione obbligatoria)
+- `frontend/src/*` = codice sorgente (modifiche sviluppo)
+- `frontend/dist/*` = build prod locale generata da `npm run build`
+- `/var/www/leasing-web/*` = build realmente pubblicata online da Nginx
+- Quindi: modificare `src` + fare `npm run build` **non basta** per vedere cambi online.
+- Serve pubblicare la build con:
+  - `rsync -a --delete /home/sectrue/leasing-web/frontend/dist/ /var/www/leasing-web/`
+
+### Processi reali (PM2)
+- Backend PM2: `leasing-backend` (esegue `npm start` in `backend/`)
+- Frontend PM2: `leasing-frontend` (Vite dev, utile per debug locale su `127.0.0.1:5173`)
+- Attenzione: il frontend PM2 su `:5173` non e' quello usato dall'utente per il sito online.
+
+### Deploy frontend online (procedura corretta)
+1. `cd /home/sectrue/leasing-web/frontend`
+2. `npm run build`
+3. `rsync -a --delete /home/sectrue/leasing-web/frontend/dist/ /var/www/leasing-web/`
+4. Verifica asset live:
+   - `curl -s http://192.168.0.254 | grep -Eo 'index-[A-Za-z0-9_-]+\\.(js|css)'`
+
+### Comando unico consigliato (deploy frontend online)
+- Script pronto nel repo:
+  - `/home/sectrue/leasing-web/deploy-frontend-online.sh`
+- Esegue:
+  - build frontend
+  - publish con `rsync` su `/var/www/leasing-web`
+  - verifica asset pubblicati
+  - verifica asset live su `http://192.168.0.254`
+
+### Permessi deploy (soluzione permanente)
+- `/var/www/leasing-web` deve essere scrivibile da `sectrue` per permettere deploy automatico senza `sudo`.
+- Stato desiderato:
+  - owner/gruppo deployabile da `sectrue`
+  - Nginx (`www-data`) in sola lettura
+
+### Verifica rapida quando "non vedo le modifiche"
+- Controllare asset online correnti:
+  - `curl -s http://192.168.0.254 | grep -Eo 'index-[A-Za-z0-9_-]+\\.(js|css)'`
+- Confrontarli con asset locali:
+  - `ls -1 /home/sectrue/leasing-web/frontend/dist/assets`
+- Se diversi => build non pubblicata nella root Nginx (`/var/www/leasing-web`)
+
+### Nota funzionale (Aziende)
+- Creazione azienda deve essere visibile nella pagina `Aziende` (sezione `Nuova azienda` con bottone `Aggiungi azienda`).
+- Non usare il bottone rapido in header se richiesto di rimuoverlo (stato attuale: rimosso).
   - frontend/src/types.ts
 - Backend aggiornato (backend/src/index.ts): rimosse le validazioni che rendevano obbligatorie le date sopra per gli stati Sabatini.
 - Applicazione effettuata direttamente su server remoto leasing-server via SSH.

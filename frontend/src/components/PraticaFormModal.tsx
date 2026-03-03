@@ -172,7 +172,11 @@ export function PraticaFormModal({
                 <input className="input" value={form.broker} onChange={(e) => onFormChange({ ...form, broker: e.target.value })} />
               </div>
               <div>
-                <label className="field-label">Nr Contratto</label>
+                <label className="field-label">Numero pratica</label>
+                <input className="input" value={form.nr_pratica} onChange={(e) => onFormChange({ ...form, nr_pratica: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label">Numero contratto</label>
                 <input className="input" value={form.nr_ctr} onChange={(e) => onFormChange({ ...form, nr_ctr: e.target.value })} />
               </div>
             </div>

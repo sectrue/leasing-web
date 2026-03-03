@@ -20,3 +20,23 @@ export function parseMoney(value: string) {
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
+
+export function formatPraticaRef(id: number, nrPratica?: string | null) {
+  return nrPratica ? `Pratica ${nrPratica}` : `Pratica #${id}`;
+}
+
+export function formatPraticaOptionLabel(p: {
+  id: number;
+  nr_pratica?: string | null;
+  nr_ctr?: string | null;
+  leasing?: string | null;
+  broker?: string | null;
+}) {
+  const base = formatPraticaRef(p.id, p.nr_pratica);
+  const parts = [base];
+  if (p.nr_ctr) parts.push(`Contratto ${p.nr_ctr}`);
+  let label = parts.join(" · ");
+  if (p.leasing) label += ` - ${p.leasing}`;
+  if (p.broker) label += ` (${p.broker})`;
+  return label;
+}
