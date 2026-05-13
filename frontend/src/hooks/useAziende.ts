@@ -13,8 +13,17 @@ export function useAziende({ token }: UseAziendeParams) {
   const [aziendaId, setAziendaId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNome, setEditNome] = useState("");
+  const [editPlafond, setEditPlafond] = useState("");
+  const [editUtilizzatoPregresso, setEditUtilizzatoPregresso] = useState("");
+  const [newNome, setNewNome] = useState("");
+  const [newPlafond, setNewPlafond] = useState("");
+  const [newUtilizzatoPregresso, setNewUtilizzatoPregresso] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -30,7 +39,7 @@ export function useAziende({ token }: UseAziendeParams) {
     }
   }, [aziendaId]);
 
-  async function load() {
+  async function load(preferredAziendaId?: number | null) {
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -50,8 +59,14 @@ export function useAziende({ token }: UseAziendeParams) {
         // ignore
       }
 
+      const preferredId =
+        preferredAziendaId && rows.some((r) => r.id === preferredAziendaId)
+          ? preferredAziendaId
+          : null;
       const validStored = storedId && rows.some((r) => r.id === storedId);
-      if (validStored) {
+      if (preferredId) {
+        setAziendaId(preferredId);
+      } else if (validStored) {
         setAziendaId(storedId as number);
       } else if (rows.length > 0) {
         setAziendaId(rows[0].id);
@@ -68,13 +83,60 @@ export function useAziende({ token }: UseAziendeParams) {
   function startEdit(item: Azienda) {
     setEditingId(item.id);
     setEditNome(item.nome || "");
+    setEditPlafond(item.plafond != null ? String(item.plafond) : "");
+    setEditUtilizzatoPregresso(item.utilizzato_pregresso != null ? String(item.utilizzato_pregresso) : "");
     setSaveError(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditNome("");
+    setEditPlafond("");
+    setEditUtilizzatoPregresso("");
     setSaveError(null);
+  }
+
+  async function createItem(nomeOverride?: string) {
+    if (!token) return false;
+    const nomeSource = typeof nomeOverride === "string" ? nomeOverride : newNome;
+    const nome = nomeSource.trim();
+    if (!nome) {
+      setCreateError("Nome azienda obbligatorio");
+      return false;
+    }
+
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch(`${API_URL}/aziende`, {
+        method: "POST",
+        headers: buildAuthHeaders(token, null, {
+          "Content-Type": "application/json"
+        }),
+        body: JSON.stringify({
+          nome,
+          plafond: newPlafond.trim() || 0,
+          utilizzato_pregresso: newUtilizzatoPregresso.trim() || 0
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Errore creazione azienda");
+      }
+      const created: Azienda = await res.json();
+      if (typeof nomeOverride !== "string") {
+        setNewNome("");
+        setNewPlafond("");
+        setNewUtilizzatoPregresso("");
+      }
+      await load(created.id);
+      return true;
+    } catch (e: any) {
+      setCreateError(e?.message || "Errore creazione azienda");
+      return false;
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function saveEdit() {
@@ -93,7 +155,11 @@ export function useAziende({ token }: UseAziendeParams) {
         headers: buildAuthHeaders(token, null, {
           "Content-Type": "application/json"
         }),
-        body: JSON.stringify({ nome })
+        body: JSON.stringify({
+          nome,
+          plafond: editPlafond.trim() || 0,
+          utilizzato_pregresso: editUtilizzatoPregresso.trim() || 0
+        })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -108,6 +174,35 @@ export function useAziende({ token }: UseAziendeParams) {
     }
   }
 
+  async function deleteItem(item: Azienda) {
+    if (!token) return false;
+    const confirmed = window.confirm(
+      `Eliminare l'azienda "${item.nome}" (ID ${item.id})?\nConsentito solo se non ha pratiche/mezzi/dati collegati.`
+    );
+    if (!confirmed) return false;
+
+    setDeletingId(item.id);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`${API_URL}/aziende/${item.id}`, {
+        method: "DELETE",
+        headers: buildAuthHeaders(token)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Errore eliminazione azienda");
+      }
+      if (editingId === item.id) cancelEdit();
+      await load(aziendaId === item.id ? null : aziendaId);
+      return true;
+    } catch (e: any) {
+      setDeleteError(e?.message || "Errore eliminazione azienda");
+      return false;
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return {
     items,
     loading,
@@ -117,9 +212,25 @@ export function useAziende({ token }: UseAziendeParams) {
     refresh: load,
     editingId,
     editNome,
+    editPlafond,
+    editUtilizzatoPregresso,
+    newNome,
+    newPlafond,
+    newUtilizzatoPregresso,
+    createError,
+    creating,
     setEditNome,
+    setEditPlafond,
+    setEditUtilizzatoPregresso,
+    setNewNome,
+    setNewPlafond,
+    setNewUtilizzatoPregresso,
     saveError,
     saving,
+    deleteError,
+    deletingId,
+    createItem,
+    deleteItem,
     startEdit,
     cancelEdit,
     saveEdit

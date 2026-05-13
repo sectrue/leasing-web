@@ -1,0 +1,3 @@
+ALTER TABLE aziende
+  ADD COLUMN plafond DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER nome,
+  ADD COLUMN utilizzato_pregresso DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER plafond;
